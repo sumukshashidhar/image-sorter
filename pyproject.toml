@@ -6,10 +6,13 @@ dependencies = [
     "opencv-python-headless>=4.8.0",
     "loguru>=0.7",
     "rich>=13.0",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
 ]
 
 [project.scripts]
 image-sorter = "image_sorter.sorter:main"
+image-sorter-web = "image_sorter.web:run"
 
 [project.optional-dependencies]
 dev = [

@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 
-import cv2
-import numpy as np
+from fastapi.testclient import TestClient
 
 from image_sorter.sorter import ImageBuffer, load_paths, move_image
+from image_sorter.web import create_app
+
+_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6X8BQAAAABJRU5ErkJggg=="
+)
 
 
 def make_image(path: Path) -> None:
-    arr = np.zeros((10, 10, 3), dtype=np.uint8)
-    cv2.imwrite(str(path), arr)
+    path.write_bytes(_PNG)
 
 
 def test_move_image(tmp_path: Path) -> None:
@@ -40,3 +44,24 @@ def test_buffer(tmp_path: Path) -> None:
         assert rec.path.exists()
         seen += 1
     assert seen == 40
+
+
+def test_web_flow(tmp_path: Path) -> None:
+    raw = tmp_path / "raw"
+    sel = tmp_path / "sel"
+    unsel = tmp_path / "unsel"
+    raw.mkdir()
+    for i in range(3):
+        make_image(raw / f"img{i}.jpg")
+    app = create_app(raw, sel, unsel)
+    client = TestClient(app)
+
+    data = client.get("/next").json()
+    assert not data["done"]
+
+    client.post("/select", json={"selected": True})
+    client.post("/select", json={"selected": False})
+    client.post("/select", json={"selected": True})
+
+    assert len(list(sel.iterdir())) == 2
+    assert len(list(unsel.iterdir())) == 1
